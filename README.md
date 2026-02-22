@@ -1,4 +1,4 @@
-# Pocket Retro
+# Readwise Retro
 
 Pocket updated their design recently. I love it but it has affected my main usecase for Pocket.
 
