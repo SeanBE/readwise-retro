@@ -1,13 +1,13 @@
 import json
 import logging
-from urllib.parse import urlparse
+import os
 
 import bottle
 import requests
 
 FRONTEND_DIST_DIR = "./frontend/dist"
 READWISE_TOKEN = os.environ['READWISE_TOKEN']
-HEADERS = {"X-Accept": "application/json", "Authorization": f"Token {TOKEN}"}
+HEADERS = {"X-Accept": "application/json", "Authorization": f"Token {READWISE_TOKEN}"}
 
 
 class JSONErrorBottle(bottle.Bottle):
@@ -55,7 +55,6 @@ def archive_article(article_id):
         headers=HEADERS,
         json={"location": "archive"},
     )
-    
     bottle.response.status = rv.status_code
     bottle.response.content_type = "application/json"
     return {}
@@ -71,10 +70,18 @@ def get_articles():
 
     try:
         items = list(content["results"])
-    except AttributeError:
+    except (KeyError, TypeError):
         items = []
 
-    return {"articles": [{"id": obj['id'], 'url': obj['source_url'], 'title': obj['title'] or obj['source_url'], 'excerpt': ''} for obj in items]}
+    return {"articles": [
+        {
+            "id": obj['id'],
+            "url": obj['source_url'],
+            "title": obj['title'] or obj['source_url'],
+            "excerpt": '',
+        }
+        for obj in items
+    ]}
 
 
 try:
