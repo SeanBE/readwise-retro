@@ -3,6 +3,30 @@ import React, { useState, useEffect } from "react";
 import { Form } from "./components/forms";
 import { Article, ArticleItem } from "./components/articles";
 
+type BlockingErrorProps = {
+  message: string;
+  onConfirm: () => void;
+};
+
+const BlockingErrorDialog: React.FC<BlockingErrorProps> = ({
+  message,
+  onConfirm,
+}) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+    <div className="bg-gray-900 border border-orange-500 text-orange-500 px-6 py-4 w-11/12 max-w-md shadow-lg">
+      <p className="mb-4 text-center">{message}</p>
+      <button
+        className="w-full border border-orange-500 px-3 py-2 uppercase font-bold tracking-wide"
+        onClick={onConfirm}
+        autoFocus
+        type="button"
+      >
+        Confirm
+      </button>
+    </div>
+  </div>
+);
+
 const parseJSON = (response: any) => {
   return new Promise((resolve) =>
     response.json().then((data: any) =>
@@ -48,6 +72,9 @@ const App: React.FC = () => {
   const [errorMessage, setErrorMessage]: [string, Function] = useState("");
   const [isAuthenticated, setIsAuthenticated]: [boolean, Function] =
     useState(true);
+  const [blockingErrorMessage, setBlockingErrorMessage] = useState<
+    string | null
+  >(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const isRedirected = urlParams.get("callback") !== null;
@@ -142,12 +169,18 @@ const App: React.FC = () => {
         }
         setArticles((existing: Article[]) => articles);
       })
-      .catch(({ status, message }) => {
+      .catch((error) => {
+        const { status, message } = error || {};
+        const effectiveMessage =
+          message ||
+          (status
+            ? `Request failed with status ${status}.`
+            : "Request failed. Please try again.");
+        setBlockingErrorMessage(effectiveMessage);
         if (status === 403) {
           setIsAuthenticated(false);
-        } else {
-          setErrorMessage(message);
         }
+        setErrorMessage(effectiveMessage);
       })
       .then(() => setIsFetching(false));
   };
@@ -159,9 +192,16 @@ const App: React.FC = () => {
   const handleClick = (id: string) => {
     // list will only contain at most 10 elements so filter is fine.
     setArticles((existing: Article[]) => existing.filter((a) => a.id !== id));
-    request(`/api/articles/${id}`, { method: "DELETE" }).catch(() =>
-      setErrorMessage("Failure to archive article. Check API.")
-    );
+    request(`/api/articles/${id}`, { method: "DELETE" }).catch((error) => {
+      const { status, message } = error || {};
+      const effectiveMessage =
+        message ||
+        (status
+          ? `Failed to archive article (status ${status}).`
+          : "Failed to archive article. Check API.");
+      setBlockingErrorMessage(effectiveMessage);
+      setErrorMessage(effectiveMessage);
+    });
   };
 
   const LimitSection = () => {
@@ -190,6 +230,12 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen flex items-center flex-col font-mono p-1">
+      {blockingErrorMessage && (
+        <BlockingErrorDialog
+          message={blockingErrorMessage}
+          onConfirm={() => setBlockingErrorMessage(null)}
+        />
+      )}
       <div className="flex-grow-0 sm:w-2/3 md:w-1/2 text-center bg-orange-500 uppercase font-bold mt-4">
         $ WELCOME TO POCKET RETRO
       </div>
